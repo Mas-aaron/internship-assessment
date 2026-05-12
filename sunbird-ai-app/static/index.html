@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sunbird AI App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 760px; margin: 0 auto; }
+
+    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { color: #555; margin-bottom: 2rem; font-size: 0.95rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #333; }
+
+    .mode-toggle { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .mode-btn {
+      flex: 1; padding: 0.55rem 1rem;
+      border: 2px solid #d1d5db; border-radius: 6px;
+      background: #fff; cursor: pointer;
+      font-size: 0.9rem; font-weight: 500; color: #555;
+      transition: all 0.15s;
+    }
+    .mode-btn.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+
+    label { display: block; font-size: 0.85rem; font-weight: 500; color: #444; margin-bottom: 0.35rem; }
+    textarea, select, input[type="file"] {
+      width: 100%; padding: 0.6rem 0.75rem;
+      border: 1.5px solid #d1d5db; border-radius: 6px;
+      font-size: 0.9rem; font-family: inherit;
+      background: #fff; color: #1a1a1a;
+      transition: border-color 0.15s;
+    }
+    textarea:focus, select:focus { outline: none; border-color: #2563eb; }
+    textarea { resize: vertical; min-height: 120px; }
+    .field { margin-bottom: 1rem; }
+    .hidden { display: none !important; }
+
+    .btn-primary {
+      width: 100%; padding: 0.7rem;
+      background: #2563eb; color: #fff;
+      border: none; border-radius: 6px;
+      font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s; margin-top: 0.5rem;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    .error-banner {
+      background: #fef2f2; border: 1.5px solid #fca5a5;
+      color: #b91c1c; border-radius: 6px;
+      padding: 0.75rem 1rem; font-size: 0.9rem; margin-bottom: 1rem;
+    }
+
+    /* Status steps */
+    .steps { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+    .step {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.875rem; color: #6b7280;
+    }
+    .step.active { color: #2563eb; font-weight: 500; }
+    .step.done { color: #16a34a; }
+    .step-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* Results */
+    .results-grid { display: flex; flex-direction: column; gap: 1rem; }
+    .result-block label {
+      font-size: 0.8rem; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #6b7280; margin-bottom: 0.4rem;
+    }
+    .result-text {
+      background: #f9fafb; border: 1.5px solid #e5e7eb;
+      border-radius: 6px; padding: 0.75rem;
+      font-size: 0.9rem; line-height: 1.5;
+      white-space: pre-wrap; min-height: 3rem; color: #1a1a1a;
+    }
+    .result-text.loading {
+      color: #9ca3af;
+      background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    audio { width: 100%; margin-top: 0.25rem; }
+
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sunbird AI App</h1>
+    <p class="subtitle">Summarise and translate text or audio into a Ugandan local language.</p>
+
+    <div class="card">
+      <h2>Input</h2>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-text" onclick="setMode('text')">Text</button>
+        <button class="mode-btn" id="btn-audio" onclick="setMode('audio')">Audio</button>
+      </div>
+
+      <div class="error-banner hidden" id="error-banner"></div>
+
+      <div class="field" id="field-text">
+        <label for="text-input">Input Text</label>
+        <textarea id="text-input" placeholder="Type or paste your text here…"></textarea>
+      </div>
+
+      <div class="field hidden" id="field-audio">
+        <label for="audio-input">Upload Audio File (WAV, MP3, M4A, OGG, AAC — max 5 min)</label>
+        <input type="file" id="audio-input" accept=".wav,.mp3,.m4a,.ogg,.aac" />
+      </div>
+
+      <div class="field">
+        <label for="language-select">Target Language</label>
+        <select id="language-select">
+          <option value="">— Select a language —</option>
+        </select>
+      </div>
+
+      <button class="btn-primary" id="submit-btn" onclick="handleSubmit()">Submit</button>
+    </div>
+
+    <div class="card hidden" id="results-card">
+      <h2>Results</h2>
+
+      <!-- Progress steps -->
+      <div class="steps" id="steps-container"></div>
+
+      <div class="results-grid">
+        <div class="result-block">
+          <label>Original Input</label>
+          <div class="result-text" id="out-original"></div>
+        </div>
+        <div class="result-block hidden" id="block-transcript">
+          <label>Transcript</label>
+          <div class="result-text" id="out-transcript"></div>
+        </div>
+        <div class="result-block hidden" id="block-summary">
+          <label>Summary</label>
+          <div class="result-text" id="out-summary"></div>
+        </div>
+        <div class="result-block hidden" id="block-translation">
+          <label>Translated Summary</label>
+          <div class="result-text" id="out-translation"></div>
+        </div>
+        <div class="result-block hidden" id="block-audio">
+          <label>Audio</label>
+          <audio id="out-audio" controls></audio>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer style="text-align:center; padding: 2rem 1rem 1.5rem; color: #9ca3af; font-size: 0.82rem;">
+    <a href="https://sunbird.ai" target="_blank" rel="noopener"
+       style="display:inline-flex; align-items:center; gap:0.4rem; text-decoration:none; color:#6b7280;">
+      Powered by
+      <img src="/static/sunbird.png" alt="Sunbird AI" style="height:22px; vertical-align:middle;" />
+    </a>
+  </footer>
+
+  <script>
+    let currentMode = 'text';
+
+    fetch('/api/languages')
+      .then(r => r.json())
+      .then(data => {
+        const sel = document.getElementById('language-select');
+        data.languages.forEach(lang => {
+          const opt = document.createElement('option');
+          opt.value = lang; opt.textContent = lang;
+          sel.appendChild(opt);
+        });
+      });
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn-text').classList.toggle('active', mode === 'text');
+      document.getElementById('btn-audio').classList.toggle('active', mode === 'audio');
+      document.getElementById('field-text').classList.toggle('hidden', mode !== 'text');
+      document.getElementById('field-audio').classList.toggle('hidden', mode !== 'audio');
+      hideError();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-banner');
+      el.textContent = msg; el.classList.remove('hidden');
+    }
+    function hideError() { document.getElementById('error-banner').classList.add('hidden'); }
+
+    function setLoading(loading) {
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = loading;
+      btn.innerHTML = loading ? '<span class="spinner"></span>Processing…' : 'Submit';
+    }
+
+    // Step tracker
+    const STEPS = {
+      transcribe: '🎙️ Transcribing audio',
+      summarise:  '📝 Summarising',
+      translate:  '🌍 Translating',
+      tts:        '🔊 Generating audio',
+    };
+
+    function initSteps(includeTranscribe) {
+      const container = document.getElementById('steps-container');
+      container.innerHTML = '';
+      const keys = includeTranscribe
+        ? ['transcribe', 'summarise', 'translate', 'tts']
+        : ['summarise', 'translate', 'tts'];
+      keys.forEach(key => {
+        const div = document.createElement('div');
+        div.className = 'step';
+        div.id = `step-${key}`;
+        div.innerHTML = `<span class="step-icon">⏳</span><span>${STEPS[key]}</span>`;
+        container.appendChild(div);
+      });
+    }
+
+    function setStep(key, state) {
+      const el = document.getElementById(`step-${key}`);
+      if (!el) return;
+      const icon = state === 'active' ? '🔄' : state === 'done' ? '✅' : '⏳';
+      el.className = `step ${state}`;
+      el.querySelector('.step-icon').textContent = icon;
+    }
+
+    async function handleSubmit() {
+      hideError();
+      const language = document.getElementById('language-select').value;
+
+      // Reset results
+      ['block-transcript','block-summary','block-translation','block-audio'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById('steps-container').innerHTML = '';
+
+      let url, body, headers = {};
+
+      if (currentMode === 'text') {
+        const text = document.getElementById('text-input').value;
+        if (!text.trim()) { showError('Please enter some text before submitting.'); return; }
+        if (!language) { showError('Please select a target language before submitting.'); return; }
+        url = '/api/stream/text';
+        body = JSON.stringify({ text, language });
+        headers['Content-Type'] = 'application/json';
+      } else {
+        const fileInput = document.getElementById('audio-input');
+        if (!fileInput.files.length) { showError('Please upload an audio file before submitting.'); return; }
+        if (!language) { showError('Please select a target language before submitting.'); return; }
+        url = '/api/stream/audio';
+        const fd = new FormData();
+        fd.append('audio', fileInput.files[0]);
+        fd.append('language', language);
+        body = fd;
+      }
+
+      setLoading(true);
+      document.getElementById('results-card').classList.remove('hidden');
+
+      // Show original input
+      if (currentMode === 'text') {
+        document.getElementById('out-original').textContent = document.getElementById('text-input').value;
+      } else {
+        const f = document.getElementById('audio-input').files[0];
+        document.getElementById('out-original').textContent = f?.name || 'audio file';
+      }
+
+      initSteps(currentMode === 'audio');
+
+      try {
+        const response = await fetch(url, { method: 'POST', headers, body });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({ detail: 'An unexpected error occurred.' }));
+          showError(err.detail || 'An unexpected error occurred.');
+          setLoading(false);
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // Parse SSE frames from buffer
+          const frames = buffer.split('\n\n');
+          buffer = frames.pop(); // keep incomplete frame
+
+          for (const frame of frames) {
+            if (!frame.trim()) continue;
+            const eventMatch = frame.match(/^event: (.+)$/m);
+            const dataMatch = frame.match(/^data: (.+)$/m);
+            if (!eventMatch || !dataMatch) continue;
+
+            const event = eventMatch[1].trim();
+            let data;
+            try { data = JSON.parse(dataMatch[1]); } catch { continue; }
+
+            handleEvent(event, data, language);
+          }
+        }
+      } catch (err) {
+        showError('Connection error. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function handleEvent(event, data, language) {
+      switch (event) {
+        case 'status':
+          setStep(data.step, 'active');
+          break;
+
+        case 'transcript':
+          setStep('transcribe', 'done');
+          document.getElementById('out-transcript').textContent =
+            data.transcript || '(empty — audio may be silent)';
+          document.getElementById('block-transcript').classList.remove('hidden');
+          break;
+
+        case 'summary':
+          setStep('summarise', 'done');
+          document.getElementById('out-summary').textContent = data.summary;
+          document.getElementById('block-summary').classList.remove('hidden');
+          break;
+
+        case 'translation':
+          setStep('translate', 'done');
+          document.getElementById('out-translation').textContent = data.translation;
+          document.getElementById('block-translation').classList.remove('hidden');
+          break;
+
+        case 'audio':
+          setStep('tts', 'done');
+          const audioEl = document.getElementById('out-audio');
+          audioEl.src = data.audio_url;
+          audioEl.load();
+          document.getElementById('block-audio').classList.remove('hidden');
+          document.getElementById('results-card').scrollIntoView({ behavior: 'smooth' });
+          break;
+
+        case 'error':
+          showError(data.message);
+          break;
+
+        case 'done':
+          break;
+      }
+    }
+  </script>
+</body>
+</html>
