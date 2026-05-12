@@ -34,7 +34,19 @@ def distinct_numbers(numbers: List[int]) -> int:
 
     E.g if numbers = [2, 3, 2, 2, 3], then the answer is 2 since there are only 2 unique numbers: 2 and 3.
     """
-    pass
+    
+    
+    # Initialize an empty list to store unique numbers
+    unique_list = []
+    # Iterate through the list of numbers and add unique numbers to the unique_list
+    for number in numbers:
+        # Check if the number is not already in the unique_list before adding it
+        if number not in unique_list:            
+            unique_list.append(number)
+            
+    return len(unique_list)
+
+
 
 
 if __name__ == "__main__":
@@ -45,3 +57,8 @@ if __name__ == "__main__":
     print(f"The Collatz sequence for {number_to_test} is:")
     print(result)
     print(f"Sequence length: {len(result)} steps")
+    
+    
+    numbers = [2, 3, 2, 2, 3]
+    print(f"\nThe list of numbers is: {numbers}")    
+    print(f"The number of distinct numbers in {numbers} is: {distinct_numbers(numbers)}")
