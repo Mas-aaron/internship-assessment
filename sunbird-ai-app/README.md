@@ -1,10 +1,11 @@
 ---
-title: Sunbird Powered App
+title: Kasuku - Powered by Sunbird AI
 emoji: 🐦
 colorFrom: green
 colorTo: blue
-sdk: docker
-app_port: 7860
+sdk: streamlit
+sdk_version: "1.41.1"
+app_file: app.py
 pinned: false
 ---
 

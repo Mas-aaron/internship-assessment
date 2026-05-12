@@ -1,20 +1,16 @@
 """
-Sunbird AI App — FastAPI entry point.
+Kasuku — Powered by Sunbird AI.
 
-Serves a single-page HTML UI and exposes streaming SSE endpoints:
-  POST /api/stream/text   — text → summarise → translate → TTS (streamed)
-  POST /api/stream/audio  — audio → STT → summarise → translate → TTS (streamed)
-
-Each step emits a JSON event as soon as it completes so the UI can
-display results progressively rather than waiting for the full pipeline.
+Accepts text or audio input, runs the Sunbird AI pipeline
+(STT → Summarise → Translate → TTS), and displays intermediate
+results as each step completes.
 
 Run from inside sunbird-ai-app/:
-    uvicorn app:app --reload
+    streamlit run app.py
 """
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 
@@ -25,10 +21,7 @@ if _APP_DIR not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(os.path.join(_APP_DIR, ".env"))
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+import streamlit as st
 
 from backend.sunbird_client import ConfigurationError, SunbirdAPIError, SunbirdClient
 from backend.validators import (
@@ -41,135 +34,163 @@ from backend.validators import (
 )
 from backend.error_formatter import format_error_for_user
 
-app = FastAPI(title="Sunbird AI App")
-app.mount("/static", StaticFiles(directory=os.path.join(_APP_DIR, "static")), name="static")
-
-
 # ---------------------------------------------------------------------------
-# SSE helpers
+# Page config
 # ---------------------------------------------------------------------------
 
-def _sse(event: str, data: dict) -> str:
-    """Format a single Server-Sent Event frame."""
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+_KASUKU_LOGO = os.path.join(_APP_DIR, "static", "kasuku.png")
+_SUNBIRD_LOGO = os.path.join(_APP_DIR, "static", "sunbird.png")
 
+st.set_page_config(
+    page_title="Kasuku",
+    page_icon=_KASUKU_LOGO,
+    layout="centered",
+)
 
-def _stream_pipeline(input_type: str, input_data: str | bytes,
-                     filename: str | None, language: str):
-    """Generator that runs the pipeline and yields SSE frames per step."""
-    try:
-        client = SunbirdClient()
-    except ConfigurationError as exc:
-        yield _sse("error", {"message": format_error_for_user(exc)})
-        return
+# ---------------------------------------------------------------------------
+# Header — Kasuku logo + name (DeepSeek style)
+# ---------------------------------------------------------------------------
 
-    try:
-        # Step 1: STT (audio only)
-        if input_type == "audio":
-            yield _sse("status", {"step": "transcribe", "message": "Transcribing audio…"})
-            transcript = client.transcribe(input_data, filename or "upload")
-            yield _sse("transcript", {"transcript": transcript})
-            text_for_summary = transcript
+col_logo, col_title = st.columns([1, 5])
+with col_logo:
+    st.image(_KASUKU_LOGO, width=60)
+with col_title:
+    st.markdown(
+        "<h1 style='margin:0; padding-top:8px; font-size:2rem; font-weight:700;'>Kasuku</h1>",
+        unsafe_allow_html=True,
+    )
+
+st.markdown(
+    "Summarise and translate text or audio into a Ugandan local language."
+)
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Input section
+# ---------------------------------------------------------------------------
+
+input_mode = st.radio("Input Mode", ["Text", "Audio"], horizontal=True)
+
+text_input = None
+audio_bytes = None
+audio_filename = None
+
+if input_mode == "Text":
+    text_input = st.text_area(
+        "Input Text",
+        placeholder="Type or paste your text here…",
+        height=150,
+    )
+else:
+    uploaded = st.file_uploader(
+        "Upload Audio File (WAV, MP3, M4A, OGG, AAC — max 5 min)",
+        type=["wav", "mp3", "m4a", "ogg", "aac"],
+    )
+    if uploaded is not None:
+        audio_bytes = uploaded.read()
+        audio_filename = uploaded.name
+
+language = st.selectbox(
+    "Target Language",
+    options=[""] + SUPPORTED_LANGUAGES,
+    format_func=lambda x: "— Select a language —" if x == "" else x,
+)
+
+submit = st.button("Submit", type="primary", use_container_width=True)
+
+# ---------------------------------------------------------------------------
+# Pipeline execution
+# ---------------------------------------------------------------------------
+
+if submit:
+    error = None
+
+    if not language:
+        error = "Please select a target language before submitting."
+    elif input_mode == "Text":
+        ok, err = validate_text_input(text_input or "")
+        if not ok:
+            error = err
+    else:
+        if audio_bytes is None:
+            error = "Please upload an audio file before submitting."
         else:
-            transcript = None
-            text_for_summary = input_data
+            ok, err = validate_audio_format(audio_filename or "")
+            if not ok:
+                error = err
+            else:
+                try:
+                    duration = get_audio_duration(audio_bytes, audio_filename)
+                    ok, err = validate_audio_duration(duration)
+                    if not ok:
+                        error = err
+                except ValueError:
+                    error = "Unsupported file format. Please upload a WAV, MP3, M4A, OGG, or AAC file."
 
-        # Step 2: Summarise
-        yield _sse("status", {"step": "summarise", "message": "Summarising…"})
-        summary = client.summarise(text_for_summary)
-        yield _sse("summary", {"summary": summary})
+    if error:
+        st.error(error)
+    else:
+        try:
+            client = SunbirdClient()
+        except ConfigurationError as exc:
+            st.error(format_error_for_user(exc))
+            st.stop()
 
-        # Step 3: Translate
-        yield _sse("status", {"step": "translate", "message": f"Translating to {language}…"})
-        translation = client.translate(summary, language)
-        yield _sse("translation", {"translation": translation})
+        st.divider()
+        st.subheader("Results")
 
-        # Step 4: TTS
-        yield _sse("status", {"step": "tts", "message": "Generating audio…"})
-        audio_url = client.synthesise(translation, language)
-        yield _sse("audio", {"audio_url": audio_url})
+        if input_mode == "Text":
+            st.markdown("**Original Input**")
+            st.info(text_input)
+        else:
+            st.markdown(f"**Original Input:** `{audio_filename}`")
 
-        yield _sse("done", {})
+        try:
+            # Step 1: STT (audio only)
+            if input_mode == "Audio":
+                with st.spinner("🎙️ Transcribing audio…"):
+                    transcript = client.transcribe(audio_bytes, audio_filename)
+                st.markdown("**Transcript**")
+                st.success(transcript or "*(empty — audio may be silent)*")
+                text_for_summary = transcript
+            else:
+                text_for_summary = text_input
 
-    except SunbirdAPIError as exc:
-        yield _sse("error", {"message": format_error_for_user(exc)})
+            # Step 2: Summarise
+            with st.spinner("📝 Summarising…"):
+                summary = client.summarise(text_for_summary)
+            st.markdown("**Summary**")
+            st.success(summary)
 
+            # Step 3: Translate
+            with st.spinner(f"🌍 Translating to {language}…"):
+                translation = client.translate(summary, language)
+            st.markdown("**Translated Summary**")
+            st.success(translation)
 
-# ---------------------------------------------------------------------------
-# Request models
-# ---------------------------------------------------------------------------
+            # Step 4: TTS
+            with st.spinner("🔊 Generating audio…"):
+                audio_url = client.synthesise(translation, language)
 
-class TextRequest(BaseModel):
-    text: str
-    language: str
+            st.markdown("**Generated Audio**")
+            st.audio(audio_url)
 
+            st.success("✅ Done!")
 
-# ---------------------------------------------------------------------------
-# Streaming endpoints
-# ---------------------------------------------------------------------------
-
-@app.post("/api/stream/text")
-async def stream_text(req: TextRequest):
-    ok, err = validate_text_input(req.text)
-    if not ok:
-        raise HTTPException(status_code=422, detail=err)
-    ok, err = validate_language_selection(req.language)
-    if not ok:
-        raise HTTPException(status_code=422, detail=err)
-
-    return StreamingResponse(
-        _stream_pipeline("text", req.text, None, req.language),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-@app.post("/api/stream/audio")
-async def stream_audio(
-    audio: UploadFile = File(...),
-    language: str = Form(...),
-):
-    ok, err = validate_language_selection(language)
-    if not ok:
-        raise HTTPException(status_code=422, detail=err)
-
-    filename = audio.filename or "upload"
-    ok, err = validate_audio_format(filename)
-    if not ok:
-        raise HTTPException(status_code=422, detail=err)
-
-    audio_bytes = await audio.read()
-
-    try:
-        duration = get_audio_duration(audio_bytes, filename)
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail="Unsupported file format. Please upload a WAV, MP3, M4A, OGG, or AAC file.",
-        )
-
-    ok, err = validate_audio_duration(duration)
-    if not ok:
-        raise HTTPException(status_code=422, detail=err)
-
-    return StreamingResponse(
-        _stream_pipeline("audio", audio_bytes, filename, language),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-@app.get("/api/languages")
-def get_languages():
-    return {"languages": SUPPORTED_LANGUAGES}
-
+        except SunbirdAPIError as exc:
+            st.error(format_error_for_user(exc))
 
 # ---------------------------------------------------------------------------
-# Serve the single-page UI
+# Footer — Powered by Sunbird AI (logo + text)
 # ---------------------------------------------------------------------------
 
-@app.get("/", response_class=HTMLResponse)
-def index():
-    html_path = os.path.join(_APP_DIR, "static", "index.html")
-    with open(html_path, encoding="utf-8") as fh:
-        return fh.read()
+st.divider()
+_, footer_mid, _ = st.columns([2, 1, 2])
+with footer_mid:
+    st.image(_SUNBIRD_LOGO, width=36)
+st.markdown(
+    "<div style='text-align:center; color:#9ca3af; font-size:0.82rem; margin-top:-0.5rem;'>"
+    "Powered by <a href='https://sunbird.ai' target='_blank' style='color:#6b7280;'>Sunbird AI</a>"
+    "</div>",
+    unsafe_allow_html=True,
+)
