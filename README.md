@@ -48,7 +48,8 @@ SunbirdClient (backend/sunbird_client.py)
 
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/internship-assessment.git
+git clone https://github.com/Mas-aaron/internship-assessment.git
+
 cd internship-assessment
 
 # 2. Set up virtual environment
@@ -94,6 +95,7 @@ Open `http://127.0.0.1:8000`.
 ### Deployed Link
 
 🔗 **https://masaaron-sunbird-powered-app.hf.space**
+
 
 ### Known Limitations
 

@@ -1,5 +1,38 @@
+# IDE
 .idea/
-venv
-**__pycache__
-.pytest_cache
+.vscode/
+
+# Virtual environments
+venv/
+sunbird-ai-app/venv/
+**/venv/
+env/
+.venv/
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Test / coverage cache
+.pytest_cache/
+.hypothesis/
+*.coverage
+htmlcov/
+
+# Secrets — never commit these
 .env
+*.env
+sunbird-ai-app/.env
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+*.egg
+
+# OS
+.DS_Store
+Thumbs.db
