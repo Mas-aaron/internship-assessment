@@ -41,22 +41,54 @@ from backend.error_formatter import format_error_for_user
 _KASUKU_LOGO = os.path.join(_APP_DIR, "static", "kasuku.png")
 _SUNBIRD_LOGO = os.path.join(_APP_DIR, "static", "sunbird.png")
 
+# Read logos as bytes so they work regardless of working directory
+def _load_image(path: str) -> bytes | None:
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except OSError:
+        return None
+
+_KASUKU_BYTES = _load_image(_KASUKU_LOGO)
+_SUNBIRD_BYTES = _load_image(_SUNBIRD_LOGO)
+
 st.set_page_config(
     page_title="Kasuku",
-    page_icon=_KASUKU_LOGO,
+    page_icon=_KASUKU_BYTES or "🐦",
     layout="centered",
 )
 
+# Inject Google Font (Playfair Display — elegant serif)
+st.markdown(
+    """
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <style>
+        .kasuku-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin: 0;
+            padding-top: 6px;
+            line-height: 1.1;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ---------------------------------------------------------------------------
-# Header — Kasuku logo + name (DeepSeek style)
+# Header — Kasuku logo + fancy name (DeepSeek style)
 # ---------------------------------------------------------------------------
 
 col_logo, col_title = st.columns([1, 5])
 with col_logo:
-    st.image(_KASUKU_LOGO, width=60)
+    if _KASUKU_BYTES:
+        st.image(_KASUKU_BYTES, width=60)
+    else:
+        st.markdown("🐦")
 with col_title:
     st.markdown(
-        "<h1 style='margin:0; padding-top:8px; font-size:2rem; font-weight:700;'>Kasuku</h1>",
+        "<p class='kasuku-title'>Kasuku</p>",
         unsafe_allow_html=True,
     )
 
@@ -187,7 +219,8 @@ if submit:
 st.divider()
 _, footer_mid, _ = st.columns([2, 1, 2])
 with footer_mid:
-    st.image(_SUNBIRD_LOGO, width=36)
+    if _SUNBIRD_BYTES:
+        st.image(_SUNBIRD_BYTES, width=36)
 st.markdown(
     "<div style='text-align:center; color:#9ca3af; font-size:0.82rem; margin-top:-0.5rem;'>"
     "Powered by <a href='https://sunbird.ai' target='_blank' style='color:#6b7280;'>Sunbird AI</a>"
