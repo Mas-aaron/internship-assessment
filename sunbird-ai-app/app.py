@@ -50,18 +50,30 @@ st.set_page_config(
     layout="centered",
 )
 
-# Inject Google Font (Playfair Display — elegant serif)
+# Inject Google Font (Playfair Display — elegant serif, similar to DeepSeek's style)
 st.markdown(
     """
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <style>
         .kasuku-title {
             font-family: 'Playfair Display', serif;
-            font-size: 2.4rem;
+            font-size: 3rem;
             font-weight: 700;
             margin: 0;
-            padding-top: 6px;
+            padding-top: 4px;
             line-height: 1.1;
+            letter-spacing: -0.5px;
+        }
+        .kasuku-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 0.5rem;
+        }
+        .kasuku-header img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
         }
     </style>
     """,
@@ -69,20 +81,21 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
-# Header — Kasuku logo + fancy name (DeepSeek style)
+# Header — Kasuku logo + fancy name side by side (DeepSeek style)
 # ---------------------------------------------------------------------------
 
-col_logo, col_title = st.columns([1, 5])
-with col_logo:
-    if _KASUKU_BYTES:
-        st.image(_KASUKU_BYTES, width=60)
-    else:
-        st.markdown("🐦")
-with col_title:
-    st.markdown(
-        "<p class='kasuku-title'>Kasuku</p>",
-        unsafe_allow_html=True,
-    )
+import base64 as _img_b64
+_kasuku_b64_str = _img_b64.b64encode(_KASUKU_BYTES).decode()
+
+st.markdown(
+    f"""
+    <div class="kasuku-header">
+        <img src="data:image/png;base64,{_kasuku_b64_str}" alt="Kasuku logo" />
+        <p class="kasuku-title">Kasuku</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.markdown(
     "Summarise and translate text or audio into a Ugandan local language."
@@ -205,17 +218,19 @@ if submit:
             st.error(format_error_for_user(exc))
 
 # ---------------------------------------------------------------------------
-# Footer — Powered by Sunbird AI (logo + text)
+# Footer — Powered by Sunbird AI (logo + text inline)
 # ---------------------------------------------------------------------------
 
 st.divider()
-_, footer_mid, _ = st.columns([2, 1, 2])
-with footer_mid:
-    if _SUNBIRD_BYTES:
-        st.image(_SUNBIRD_BYTES, width=36)
+_sunbird_b64_str = _img_b64.b64encode(_SUNBIRD_BYTES).decode()
 st.markdown(
-    "<div style='text-align:center; color:#9ca3af; font-size:0.82rem; margin-top:-0.5rem;'>"
-    "Powered by <a href='https://sunbird.ai' target='_blank' style='color:#6b7280;'>Sunbird AI</a>"
-    "</div>",
+    f"""
+    <div style='text-align:center; margin-top:0.5rem;'>
+        <img src="data:image/png;base64,{_sunbird_b64_str}" alt="Sunbird AI" style="height:28px; vertical-align:middle; margin-right:6px;" />
+        <span style='color:#9ca3af; font-size:0.82rem; vertical-align:middle;'>
+            Powered by <a href='https://sunbird.ai' target='_blank' style='color:#6b7280;'>Sunbird AI</a>
+        </span>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
