@@ -30,6 +30,11 @@ htmlcov/
 *.env
 sunbird-ai-app/.env
 
+# Static binary assets (logos embedded in app.py as base64)
+sunbird-ai-app/static/*.png
+sunbird-ai-app/static/*.jpg
+sunbird-ai-app/static/*.jpeg
+
 # Build artifacts
 *.egg-info/
 dist/
