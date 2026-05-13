@@ -35,11 +35,11 @@ from backend.validators import (
 from backend.error_formatter import format_error_for_user
 
 # ---------------------------------------------------------------------------
-# Logo URLs — use GitHub raw content (no binary files needed in HF push)
+# Logo paths
 # ---------------------------------------------------------------------------
 
-_KASUKU_URL = "https://raw.githubusercontent.com/Mas-aaron/internship-assessment/main/sunbird-ai-app/static/kasuku.png"
-_SUNBIRD_URL = "https://raw.githubusercontent.com/Mas-aaron/internship-assessment/main/sunbird-ai-app/static/sunbird.png"
+_KASUKU_LOGO = os.path.join(_APP_DIR, "static", "kasuku.png")
+_SUNBIRD_LOGO = os.path.join(_APP_DIR, "static", "sunbird.png")
 
 # ---------------------------------------------------------------------------
 # Page config — MUST be first Streamlit call
@@ -47,7 +47,7 @@ _SUNBIRD_URL = "https://raw.githubusercontent.com/Mas-aaron/internship-assessmen
 
 st.set_page_config(
     page_title="Kasuku",
-    page_icon=_KASUKU_URL,
+    page_icon=_KASUKU_LOGO if os.path.exists(_KASUKU_LOGO) else "🐦",
     layout="centered",
 )
 
@@ -59,17 +59,6 @@ st.markdown(
     """
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <style>
-        .kasuku-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 0.25rem;
-        }
-        .kasuku-header img {
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-        }
         .kasuku-title {
             font-family: 'Playfair Display', serif;
             font-size: 3rem;
@@ -77,6 +66,8 @@ st.markdown(
             margin: 0;
             line-height: 1.1;
             letter-spacing: -0.5px;
+            display: inline-block;
+            vertical-align: middle;
         }
     </style>
     """,
@@ -87,15 +78,17 @@ st.markdown(
 # Header — Kasuku logo + fancy name side by side (DeepSeek style)
 # ---------------------------------------------------------------------------
 
-st.markdown(
-    f"""
-    <div class="kasuku-header">
-        <img src="{_KASUKU_URL}" alt="Kasuku logo" />
-        <p class="kasuku-title">Kasuku</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+col_logo, col_title = st.columns([1, 4])
+with col_logo:
+    if os.path.exists(_KASUKU_LOGO):
+        st.image(_KASUKU_LOGO, width=70)
+    else:
+        st.markdown("🐦")
+with col_title:
+    st.markdown(
+        "<p class='kasuku-title'>Kasuku</p>",
+        unsafe_allow_html=True,
+    )
 
 st.markdown(
     "Summarise and translate text or audio into a Ugandan local language."
@@ -222,18 +215,13 @@ if submit:
 # ---------------------------------------------------------------------------
 
 st.divider()
+footer_cols = st.columns([2, 1, 2])
+with footer_cols[1]:
+    if os.path.exists(_SUNBIRD_LOGO):
+        st.image(_SUNBIRD_LOGO, width=40)
 st.markdown(
-    f"""
-    <div style='text-align:center; margin-top:0.5rem;'>
-        <img src="{_SUNBIRD_URL}" alt="Sunbird AI"
-             style="height:28px; vertical-align:middle; margin-right:6px;" />
-        <span style='color:#9ca3af; font-size:0.82rem; vertical-align:middle;'>
-            Powered by
-            <a href='https://sunbird.ai' target='_blank' style='color:#6b7280;'>
-                Sunbird AI
-            </a>
-        </span>
-    </div>
-    """,
+    "<div style='text-align:center; color:#9ca3af; font-size:0.82rem; margin-top:-0.5rem;'>"
+    "Powered by <a href='https://sunbird.ai' target='_blank' style='color:#6b7280;'>Sunbird AI</a>"
+    "</div>",
     unsafe_allow_html=True,
 )
