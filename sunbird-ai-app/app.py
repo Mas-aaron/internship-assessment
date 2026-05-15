@@ -377,7 +377,7 @@ with gr.Blocks(title="Kasuku — Sunbird AI", css=CSS) as demo:
 
 if __name__ == "__main__":
     demo.launch(
-        server_name="127.0.0.1",
+        server_name="0.0.0.0",   # HF Spaces requires 0.0.0.0
         server_port=7860,
         show_error=True,
         theme=gr.themes.Soft(
