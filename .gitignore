@@ -30,10 +30,10 @@ htmlcov/
 *.env
 sunbird-ai-app/.env
 
-# Static binary assets (logos) — excluded locally but needed on HF Spaces
-# sunbird-ai-app/static/*.png
-# sunbird-ai-app/static/*.jpg
-# sunbird-ai-app/static/*.jpeg
+# Static binary assets (logos) — HF Spaces rejects binary files via git push
+sunbird-ai-app/static/*.png
+sunbird-ai-app/static/*.jpg
+sunbird-ai-app/static/*.jpeg
 
 # Build artifacts
 *.egg-info/

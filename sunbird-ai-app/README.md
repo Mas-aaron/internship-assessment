@@ -104,7 +104,7 @@ Open **http://127.0.0.1:7860** in your browser.
 
 ## Deployed Link
 
-> 🔗 **[Add your Hugging Face Spaces URL here after deployment]**
+> 🔗 **[https://masaaron-sunbird-powered-app.hf.space](https://masaaron-sunbird-powered-app.hf.space)**
 
 ---
 
